@@ -94,3 +94,24 @@ npm run typecheck
 npm test
 npm run build      # → dist/index.mjs (publish this as the bundleUrl asset)
 ```
+
+## SDK, distribution & updates
+
+Built on **[@rewind/addon-sdk](../rewind_addon_sdk/PROTOCOL.md)** — the unified
+contract every Rewind addon shares (one manifest dialect, one `register(host)`
+entry, unified `catalog/meta/stream/resolve/search/subtitles/playback` resources
+over the unified content-type aliases, served by the server at
+`/api/addons/<kind>/<resource>/<type>/<id>.json`).
+
+Operators never see this source: `./publish.sh` builds the bundle and commits
+**only** `manifest.json` + `dist/index.mjs` to the orphan `release` branch,
+which is what `manifest.json` points the server at. Updates are **commit-based**
+— every publish is one commit, the server compares the newest published bundle
+commit against the installed one (manual "check for updates" on the addon card
++ the daily `addons_update` automation) and re-installs pinned at the new sha.
+
+```
+npm run build        # bundle only (dist/index.mjs)
+./publish.sh         # build + commit artifacts to the local release branch
+./publish.sh --push  # … and push it live
+```

@@ -1,3 +1,4 @@
+import{fileURLToPath as __sdk_f}from'node:url';import{dirname as __sdk_d}from'node:path';const __filename=__sdk_f(import.meta.url);const __dirname=__sdk_d(__filename);
 var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __esm = (fn, res, err) => function __init() {
@@ -4356,6 +4357,20 @@ var init_base2 = __esm({
   }
 });
 
+// ../rewind_addon_sdk/src/manifest.ts
+var SDK_PROTOCOL_VERSION = 1;
+
+// ../rewind_addon_sdk/src/addon.ts
+function defineAddon(def) {
+  return {
+    manifest: def.manifest,
+    async register(host2) {
+      const { resources = {}, api } = await def.setup(host2);
+      return { sdk: SDK_PROTOCOL_VERSION, manifest: def.manifest, resources, api };
+    }
+  };
+}
+
 // src/plugin.ts
 init_host();
 
@@ -6971,10 +6986,43 @@ function streamRowId(itemId, s) {
   return createHash2("md5").update(`${itemId}:${key}`).digest("hex");
 }
 
+// manifest.json
+var manifest_default = {
+  id: "rewind.forge",
+  name: "The Forge",
+  version: "2.0.0",
+  description: "Torrent/usenet indexers + debrid resolution for Rewind. Brings the streams pipeline (Torrentio, Zilean, Torznab/Newznab, Comet, EasyNews, TorBox search) and the debrid/usenet resolvers. Installing reveals the Forge tab and the debrid/usenet credentials.",
+  resources: ["stream", "resolve"],
+  types: ["movie", "series", "episode"],
+  idPrefixes: ["tt", "tmdb:"],
+  rewind: {
+    kind: "forge",
+    sdk: 1,
+    repo: "j4ckgrey/rewind_forge",
+    branch: "release",
+    bundlePath: "dist/index.mjs",
+    bundleUrl: "https://raw.githubusercontent.com/j4ckgrey/rewind_forge/release/dist/index.mjs",
+    tabs: [{ id: "forge", label: "Forge", icon: "hammer" }],
+    configKeys: [
+      { key: "realdebrid_api_key", label: "Real-Debrid", category: "Debrid Providers", description: "API token from real-debrid.com/apitoken." },
+      { key: "alldebrid_api_key", label: "AllDebrid", category: "Debrid Providers", description: "API key from alldebrid.com/apikeys." },
+      { key: "premiumize_api_key", label: "Premiumize", category: "Debrid Providers", description: "API key from premiumize.me/account." },
+      { key: "torbox_api_key", label: "TorBox", category: "Debrid Providers", description: "API key from torbox.app/settings. Also powers the TorBox search indexer." },
+      { key: "debridlink_api_key", label: "Debrid-Link", category: "Debrid Providers", description: "API token from debrid-link.com/webapp/apikey." },
+      { key: "offcloud_api_key", label: "Offcloud", category: "Debrid Providers", description: "API key from offcloud.com/account/preferences." },
+      { key: "putio_api_key", label: "Put.io", category: "Debrid Providers", description: "OAuth token from put.io/oauth." },
+      { key: "easydebrid_api_key", label: "EasyDebrid", category: "Debrid Providers", description: "API key from easydebrid.com." },
+      { key: "nzbdav_host", label: "NZBDav Host URL", category: "Self-Hosted Usenet", secret: false, placeholder: "http://192.168.1.10:8080", description: "Base URL of your NZBDav instance." },
+      { key: "nzbdav_api_key", label: "NZBDav API Key", category: "Self-Hosted Usenet", description: "Optional \u2014 leave blank if NZBDav requires none." },
+      { key: "altmount_host", label: "AltMount Host URL", category: "Self-Hosted Usenet", secret: false, placeholder: "http://192.168.1.10:9000", description: "Base URL of your AltMount instance." },
+      { key: "altmount_api_key", label: "AltMount API Key", category: "Self-Hosted Usenet", description: "Optional \u2014 leave blank if AltMount requires none." }
+    ],
+    features: ["torrents", "debrid", "usenet"]
+  }
+};
+
 // src/plugin.ts
-var manifest = { id: "rewind.forge", kind: "forge" };
-function register(host2) {
-  setForgeHost(host2);
+function buildApi() {
   return {
     syncNativeStreams(opts) {
       return syncNativeStreams({
@@ -6991,7 +7039,60 @@ function register(host2) {
     resolveStream
   };
 }
+function queryFromRequest({ type, id, extra }) {
+  const num = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : void 0;
+  };
+  return {
+    kind: type === "movie" ? "movie" : "series",
+    imdbId: /^tt\d+/.test(id) ? id : void 0,
+    tmdbId: id.startsWith("tmdb:") ? id.slice(5) : void 0,
+    title: typeof extra.title === "string" ? extra.title : void 0,
+    year: num(extra.year),
+    season: num(extra.season),
+    episode: num(extra.episode)
+  };
+}
+var addon = defineAddon({
+  manifest: manifest_default,
+  setup(host2) {
+    setForgeHost(host2);
+    const api = buildApi();
+    return {
+      api,
+      resources: {
+        // stream/<movie|series|episode>/<tt…|tmdb:…>.json — search + cache
+        // streams for the item. `extra` carries the embedder's prefs row +
+        // formatter JSON (the pipeline needs the operator's filter/sort/format
+        // settings; they are the embedder's data, not the addon's).
+        stream: async (req) => {
+          const streams = await api.syncNativeStreams({
+            itemId: String(req.extra.itemId ?? req.id),
+            query: queryFromRequest(req),
+            prefsRow: req.extra.prefsRow ?? {},
+            preferredReleaseGroup: req.extra.preferredReleaseGroup ?? null,
+            formatterJson: req.extra.formatterJson ?? null,
+            episodeName: req.extra.episodeName ?? null
+          });
+          return { streams };
+        },
+        // resolve/<type>/<id>.json — turn one chosen candidate into a URL.
+        resolve: async ({ extra }) => {
+          const url = await api.resolveStream(
+            extra.stream ?? {},
+            extra.hint
+          );
+          return { url };
+        }
+      }
+    };
+  }
+});
+var manifest = addon.manifest;
+var register = addon.register;
 export {
+  addon,
   manifest,
   register
 };

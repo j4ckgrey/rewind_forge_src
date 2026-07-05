@@ -15,9 +15,10 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "build": "esbuild src/plugin.ts --bundle --format=esm --platform=node --target=node22 --outfile=dist/index.mjs --tsconfig=tsconfig.json"
+    "build": "node build.mjs"
   },
   "dependencies": {
+    "@rewind/addon-sdk": "file:../rewind_addon_sdk",
     "@viren070/parse-torrent-title": "^0.7.6"
   },
   "devDependencies": {

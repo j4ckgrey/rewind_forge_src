@@ -1,12 +1,18 @@
 {
   "id": "rewind.forge",
   "name": "The Forge",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Torrent/usenet indexers + debrid resolution for Rewind. Brings the streams pipeline (Torrentio, Zilean, Torznab/Newznab, Comet, EasyNews, TorBox search) and the debrid/usenet resolvers. Installing reveals the Forge tab and the debrid/usenet credentials.",
-  "resources": ["stream"],
+  "resources": ["stream", "resolve"],
+  "types": ["movie", "series", "episode"],
+  "idPrefixes": ["tt", "tmdb:"],
   "rewind": {
     "kind": "forge",
-    "bundleUrl": "https://raw.githubusercontent.com/j4ckgrey/rewind_forge/main/dist/index.mjs",
+    "sdk": 1,
+    "repo": "j4ckgrey/rewind_forge",
+    "branch": "release",
+    "bundlePath": "dist/index.mjs",
+    "bundleUrl": "https://raw.githubusercontent.com/j4ckgrey/rewind_forge/release/dist/index.mjs",
     "tabs": [{ "id": "forge", "label": "Forge", "icon": "hammer" }],
     "configKeys": [
       { "key": "realdebrid_api_key", "label": "Real-Debrid", "category": "Debrid Providers", "description": "API token from real-debrid.com/apitoken." },
