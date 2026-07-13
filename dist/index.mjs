@@ -6999,7 +6999,7 @@ var manifest_default = {
     kind: "forge",
     sdk: 1,
     repo: "j4ckgrey/rewind_forge",
-    branch: "release",
+    branch: "main",
     bundlePath: "dist/index.mjs",
     bundleUrl: "https://raw.githubusercontent.com/j4ckgrey/rewind_forge/release/dist/index.mjs",
     tabs: [{ id: "forge", label: "Forge", icon: "hammer" }],
