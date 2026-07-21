@@ -150,7 +150,13 @@ export class CometSource implements StreamSource {
    */
   private async buildBaseUrl(cfg: CometConfig): Promise<string | null> {
     if (cfg.manifestUrl) {
-      return cfg.manifestUrl.replace(/\/manifest\.json$/, "").replace(/\/$/, "");
+      // Cut at the FIRST `/manifest.json` so a corrupted/doubled manifest URL
+      // (two Comet URLs concatenated: `.../<cfg>/manifest.json<junk>/manifest.json`)
+      // self-heals to the first valid config base instead of producing a
+      // `.../manifest.json<junk>/stream/...` 404.
+      const i = cfg.manifestUrl.indexOf("/manifest.json");
+      const base = i >= 0 ? cfg.manifestUrl.slice(0, i) : cfg.manifestUrl;
+      return base.replace(/\/+$/, "");
     }
     const host = (this.row.url || DEFAULT_HOST).replace(/\/$/, "");
     const accounts = await getForgeHost().listStreamAccounts("debrid");
